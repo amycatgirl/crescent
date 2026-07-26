@@ -12,8 +12,10 @@ import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.datastore.ConfigDataStoreKeys
 import space.bunniesin.crescent.datastore.PreferenceDataStoreHelper
 import space.bunniesin.crescent.models.api.authentication.SessionResponse
-import space.bunniesin.crescent.ui.composables.LoginMFA
 import kotlinx.coroutines.launch
+import space.bunniesin.crescent.models.routes.ConversationList
+import space.bunniesin.crescent.models.routes.Login
+import space.bunniesin.crescent.models.routes.LoginMFA
 
 class LoginViewmodel(
     private val client: ApiClient,
@@ -23,12 +25,14 @@ class LoginViewmodel(
     ViewModel() {
     private val preferenceDataStoreHelper = PreferenceDataStoreHelper(context)
 
+    // TODO: this too, should be moved into global app state, dumbass
     init {
         viewModelScope.launch {
             checkSession()
         }
     }
 
+    // TODO: Move this to global app state, this shouldn't be inside the login page
     private suspend fun checkSession() {
         Log.d("Login", "Login Launched")
         var currentSession: String = ""
@@ -47,8 +51,8 @@ class LoginViewmodel(
             ApiClient.currentSession = availableSession
 
             ApiClient.startSession(availableSession)
-            navigation.navigate("home") {
-                popUpTo("auth") { inclusive = true }
+            navigation.navigate(ConversationList) {
+                popUpTo(Login) { inclusive = true }
             }
         } else {
             Log.d("Login", "SerializedSession does not exist.")
@@ -71,7 +75,7 @@ class LoginViewmodel(
                         ConfigDataStoreKeys.SerializedCurrentSession,
                         serializedSession
                     )
-                    navigation.navigate("home") {
+                    navigation.navigate(ConversationList) {
                         popUpTo("auth") { inclusive = true }
                     }
                 }

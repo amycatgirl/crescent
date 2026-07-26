@@ -42,13 +42,7 @@ import space.bunniesin.crescent.models.viewmodels.SelectedMethod
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-
-
-@Serializable
-data class LoginMFA(
-    val ticket: String
-)
+import space.bunniesin.crescent.models.routes.LoginMFA
 
 @Composable
 fun MFADialog(

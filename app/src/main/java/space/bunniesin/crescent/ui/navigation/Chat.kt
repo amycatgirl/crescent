@@ -1,5 +1,6 @@
 package space.bunniesin.crescent.ui.navigation
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +43,7 @@ import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +71,7 @@ import space.bunniesin.crescent.ui.composables.SystemMessageDisplay
 import space.bunniesin.crescent.ui.theme.RevoltTheme
 import space.bunniesin.crescent.utilities.EventBus
 import kotlinx.coroutines.launch
+import space.bunniesin.crescent.models.viewmodels.ChatState
 
 // TODO: Currently it's buggy and might crash.
 
@@ -75,31 +79,20 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatPage(
     viewmodel: ChatViewmodel,
-    ulid: String,
     navigateToUserProfile: () -> Unit = {},
     goBack: () -> Unit
 ) {
-    // TODO: Fix user not getting data
-    val user = ApiClient.cache[ulid]
-
-    println("User: $user")
-
     var messageValue by remember { mutableStateOf("") }
-    val messages = remember { viewmodel.messages }
     val navigator = rememberSupportingPaneScaffoldNavigator()
-
-    val avatar = when (user) {
-        is Channel.Group -> "${ApiClient.S3_ROOT_URL}icons/${user.icon?.id}?max_side=256"
-        is User -> "${ApiClient.S3_ROOT_URL}avatars/${user.avatar?.id}?max_side=256"
-        else -> null
-    }
+    val state by viewmodel.state.collectAsState()
 
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(ulid) {
+    // TODO: Move to background thread, should be inside viewmodel anyway
+    LaunchedEffect(state.channel?.id) {
         EventBus.subscribe<PartialMessage> {
-            if (it.channelId == ulid) {
-                messages.add(0, it)
+            if (it.channelId == state.channel?.id) {
+                viewmodel.addMessage(it)
             }
         }
     }
@@ -114,27 +107,8 @@ fun ChatPage(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ProfileImage(
-                        fallback = when (user) {
-                            is User -> user.username
-                            is Channel.Group -> user.name
-                            else -> "Unknown"
-                        }, url = avatar, size = 26.dp
-                    )
-                    Text(
-                        text = when (user) {
-                            is Channel.Group -> user.name
-                            is User -> user.displayName ?: "${user.username}#${user.discriminator}"
-
-                            else -> "Unknown"
-                        }, maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
-                }
-            },
+                    ChatHeaderTitle(state)
+                },
                 actions = {
                     IconButton(onClick = {
                         scope.launch {
@@ -214,8 +188,12 @@ fun ChatPage(
                         IconButton(
                             onClick = {
                                 scope.launch {
-                                    ApiClient.sendMessage(ulid, messageValue)
-                                    messageValue = ""
+                                    if (state.channel != null) {
+                                        viewmodel.sendMessage(state.channel as Channel, messageValue)
+                                        messageValue = ""
+                                    } else {
+                                        Log.d("ChatPage", "What the fuck, channel is null?????")
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -237,80 +215,70 @@ fun ChatPage(
         }
 
     ) {
-        SupportingPaneScaffold(
-            modifier = Modifier.safeContentPadding().padding(it),
-            directive = navigator.scaffoldDirective,
-            value = navigator.scaffoldValue,
-            mainPane = {
-                AnimatedPane {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        reverseLayout = true
-                    ) {
-                        items(messages) { message ->
-                            val isSelf = message.authorId == ApiClient.currentSession?.userId
+        ChatContent(state, it)
+    }
+}
 
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                when (message.system != null) {
-                                    true -> SystemMessageDisplay(message.system)
-                                    false -> ChatBubble(
-                                        message,
-                                        modifier = if (isSelf)
-                                            Modifier.align(Alignment.BottomEnd)
-                                        else
-                                            Modifier.align(Alignment.BottomStart),
-                                        isSelf
-                                    )
-                                }
-                            }
-                        }
+@Composable
+fun ChatHeaderTitle(
+    state: ChatState
+) {
+    val avatar = if (state.user != null) {
+        state.user.avatar?.let { "${ApiClient.S3_ROOT_URL}/avatars/${it.id}?max_side=256" }
+    } else if (state.channel is Channel.Group) {
+        state.channel.icon?.let { "${ApiClient.S3_ROOT_URL}/icons/${it.id}?max_side=256" }
+    } else {
+        "Unknown"
+    }
 
-                    }
-                }
-            },
-            supportingPane = {
-                AnimatedPane (Modifier.safeContentPadding()) {
-                    Column(
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .clip(MaterialTheme.shapes.large)
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        when (user) {
-                            is User -> {
-                                ProfileImage(
-                                    fallback = user.username,
-                                    url = avatar,
-                                    presence = user.status?.presence
-                                )
-                                user.displayName?.let { it1 ->
-                                    Text(
-                                        it1,
-                                        style = MaterialTheme.typography.headlineSmall
-                                    )
-                                }
-                            }
-                            else -> Text("Unknown", style = MaterialTheme.typography.headlineMedium)
-                        }
-                    }
-                }
-            }
+    val name = if (state.user != null) {
+        state.user.displayName ?: "${state.user.username}#${state.user.discriminator}"
+    } else if (state.channel is Channel.Group) {
+        state.channel.name
+    } else {
+        "Unknown"
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ProfileImage(
+            fallback = name, url = avatar, size = 26.dp
+        )
+        Text(
+            text = name, maxLines = 1, overflow = TextOverflow.Ellipsis
         )
     }
 }
 
-@Preview
 @Composable
-fun ChatPagePreview() {
-    RevoltTheme {
-        val viewmodel = viewModel {
-            ChatViewmodel("")
+fun ChatContent(
+    state: ChatState,
+    padding: PaddingValues
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        reverseLayout = true
+    ) {
+        items(state.messages) { message ->
+            val isSelf = message.authorId == ApiClient.currentSession?.userId
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                when (message.system != null) {
+                    true -> SystemMessageDisplay(message.system)
+                    false -> ChatBubble(
+                        message,
+                        modifier = if (isSelf)
+                            Modifier.align(Alignment.BottomEnd)
+                        else
+                            Modifier.align(Alignment.BottomStart),
+                        isSelf
+                    )
+                }
+            }
         }
-        ChatPage(viewmodel, "1", {}) {}
+
     }
 }

@@ -11,19 +11,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import space.bunniesin.crescent.api.ApiClient
+import space.bunniesin.crescent.models.routes.ConversationList
+import space.bunniesin.crescent.models.routes.Debug
+import space.bunniesin.crescent.models.routes.CustomNavTypes
+import space.bunniesin.crescent.models.routes.DirectMessage
+import space.bunniesin.crescent.models.routes.Login
+import space.bunniesin.crescent.models.routes.LoginMFA
+import space.bunniesin.crescent.models.routes.SettingsPage
+import space.bunniesin.crescent.models.routes.StartConversation
 import space.bunniesin.crescent.models.viewmodels.ChatViewmodel
 import space.bunniesin.crescent.models.viewmodels.HomeViewmodel
 import space.bunniesin.crescent.models.viewmodels.LoginViewmodel
 import space.bunniesin.crescent.models.viewmodels.MainViewmodel
-import space.bunniesin.crescent.ui.composables.LoginMFA
 import space.bunniesin.crescent.ui.composables.MFADialog
 import space.bunniesin.crescent.ui.navigation.ChatPage
 import space.bunniesin.crescent.ui.navigation.DebugScreen
@@ -41,8 +46,8 @@ fun App(
     val navigator = rememberNavController()
 
     Surface(color = MaterialTheme.colorScheme.background) {
-        NavHost(navController = navigator, startDestination = "auth") {
-            composable("debug",
+        NavHost(navController = navigator, startDestination = Login) {
+            composable<Debug>(
                 enterTransition = {
                     fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
                         animationSpec = tween(
@@ -67,7 +72,7 @@ fun App(
                 }, navigateToDebugLogin = { navigator.navigate("auth") })
             }
 
-            composable("auth") {
+            composable<Login> {
                 val viewmodel = viewModel {
                     LoginViewmodel(ApiClient, navigator, context)
                 }
@@ -82,8 +87,7 @@ fun App(
                 })
             }
 
-            composable(
-                "home",
+            composable<ConversationList>(
                 enterTransition = {
                     fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
                         animationSpec = tween(
@@ -109,15 +113,20 @@ fun App(
 
                 HomePage(
                     homeViewmodel,
-                    navigateToChat = { navigator.navigate("messages/${it}") },
-                    navigateToDebug = { navigator.navigate("debug") },
-                    navigateToSettings = { navigator.navigate("settings") },
-                    navigateToStartConversation = { navigator.navigate("home/startconversation") }
+                    navigateToChat = { channel, user ->
+                        navigator.navigate(
+                            DirectMessage(
+                                user, channel
+                            )
+                        )
+                    },
+                    navigateToDebug = { navigator.navigate(Debug) },
+                    navigateToSettings = { navigator.navigate(SettingsPage.ROOT) },
+                    navigateToStartConversation = { navigator.navigate(StartConversation.INDIVIDUAL) }
                 )
             }
 
-            composable(
-                "home/startconversation",
+            composable<StartConversation.INDIVIDUAL>(
                 enterTransition = {
                     fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
                         animationSpec = tween(
@@ -137,11 +146,34 @@ fun App(
                     )
                 }
             ) {
-                StartConversationPage (goBack = { navigator.popBackStack() })
+                StartConversationPage(goBack = { navigator.popBackStack() })
             }
 
-            composable(
-                "messages/{id}",
+            composable<StartConversation.GROUP>(
+                enterTransition = {
+                    fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
+                        animationSpec = tween(
+                            durationMillis = 250,
+                            easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+                        ),
+                        towards = AnimatedContentTransitionScope.SlideDirection.Right
+                    )
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(durationMillis = 200)) + slideOutOfContainer(
+                        animationSpec = tween(
+                            durationMillis = 200,
+                            easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+                        ),
+                        towards = AnimatedContentTransitionScope.SlideDirection.Left
+                    )
+                }
+            ) {
+                // TODO: Implement group conversation
+            }
+
+            composable<DirectMessage>(
+                typeMap = CustomNavTypes,
                 enterTransition = {
                     fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
                         animationSpec = tween(
@@ -159,27 +191,24 @@ fun App(
                         ),
                         towards = AnimatedContentTransitionScope.SlideDirection.Right
                     )
-                },
-                arguments = listOf(navArgument("id") { type = NavType.StringType })
+                }
             ) { backStackEntry ->
                 Log.d(
                     "Navigator",
                     "navigating to chat, id: ${backStackEntry.arguments?.getString("id")}"
                 )
+                val dm: DirectMessage = backStackEntry.toRoute()
                 val viewmodel: ChatViewmodel = viewModel {
-                    ChatViewmodel(backStackEntry.arguments?.getString("id")!!)
+                    ChatViewmodel(dm.user, dm.channel)
                 }
                 ChatPage(
                     viewmodel,
-                    backStackEntry.arguments?.getString("id")!!,
                     goBack = {
                         navigator.popBackStack()
                     }
                 )
             }
-
-            composable(
-                "settings",
+            composable<SettingsPage.ROOT>(
                 enterTransition = {
                     fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
                         animationSpec = tween(
@@ -197,28 +226,29 @@ fun App(
                         ),
                         towards = AnimatedContentTransitionScope.SlideDirection.Right
                     )
-                }
-            ) {
+                }) {
                 SettingsPage(
                     goBack = { navigator.popBackStack() },
                     navigateToAccount = {},
-                    navigateToProfile = { navigator.navigate("settings/profile") },
+                    navigateToProfile = { navigator.navigate(SettingsPage.PROFILE) },
                     onSessionDropped = {
-                        navigator.navigate("auth") {
-                            popUpTo("settings") { inclusive = true }
+                        navigator.navigate(Login) {
+                            popUpTo<SettingsPage.ROOT> { inclusive = true }
                         }
                     }
                 )
             }
-            composable("settings/profile", enterTransition = {
-                fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
-                    animationSpec = tween(
-                        durationMillis = 250,
-                        easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
-                    ),
-                    towards = AnimatedContentTransitionScope.SlideDirection.Left
-                )
-            },
+
+            composable<SettingsPage.PROFILE>(
+                enterTransition = {
+                    fadeIn(animationSpec = tween(durationMillis = 250)) + slideIntoContainer(
+                        animationSpec = tween(
+                            durationMillis = 250,
+                            easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+                        ),
+                        towards = AnimatedContentTransitionScope.SlideDirection.Left
+                    )
+                },
                 exitTransition = {
                     fadeOut(animationSpec = tween(durationMillis = 200)) + slideOutOfContainer(
                         animationSpec = tween(

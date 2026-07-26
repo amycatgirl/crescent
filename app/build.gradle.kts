@@ -15,11 +15,11 @@ val versionPatch = 0
 val versionBuild = 0
 
 android {
-    namespace = "app.upryzing.crescent"
+    namespace = "space.bunniesin.crescent"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "app.upryzing.crescent"
+        applicationId = "space.bunniesin.crescent"
         minSdk = 24
         targetSdk = 35
         versionCode = versionMajor * 10000 + versionMinor * 1000 + versionPatch * 100 + versionBuild

@@ -1,4 +1,4 @@
-package app.upryzing.crescent
+package space.bunniesin.crescent
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry

@@ -1,4 +1,4 @@
-package app.upryzing.crescent
+package space.bunniesin.crescent
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

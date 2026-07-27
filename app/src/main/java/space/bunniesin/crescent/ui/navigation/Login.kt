@@ -45,11 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.bunniesin.crescent.models.viewmodels.LoginViewmodel
 import space.bunniesin.crescent.ui.composables.AccountDisabledDialog
-import kotlinx.serialization.Serializable
 import space.bunniesin.crescent.R
-
-@Serializable
-object Login
 
 @Composable
 fun LoginPage(

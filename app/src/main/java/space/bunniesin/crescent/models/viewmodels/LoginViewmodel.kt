@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.NavController
+import space.bunniesin.crescent.Navigator
 import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.datastore.ConfigDataStoreKeys
 import space.bunniesin.crescent.datastore.PreferenceDataStoreHelper
@@ -19,7 +19,7 @@ import space.bunniesin.crescent.models.routes.LoginMFA
 
 class LoginViewmodel(
     private val client: ApiClient,
-    private val navigation: NavController,
+    private val navigation: Navigator,
     context: Context
 ) :
     ViewModel() {
@@ -51,9 +51,7 @@ class LoginViewmodel(
             ApiClient.currentSession = availableSession
 
             ApiClient.startSession(availableSession)
-            navigation.navigate(ConversationList) {
-                popUpTo(Login) { inclusive = true }
-            }
+            navigation.navigate(ConversationList)
         } else {
             Log.d("Login", "SerializedSession does not exist.")
         }
@@ -75,9 +73,7 @@ class LoginViewmodel(
                         ConfigDataStoreKeys.SerializedCurrentSession,
                         serializedSession
                     )
-                    navigation.navigate(ConversationList) {
-                        popUpTo("auth") { inclusive = true }
-                    }
+                    navigation.navigate(ConversationList)
                 }
             }
         }

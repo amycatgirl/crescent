@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -102,29 +104,12 @@ fun ChatPage(
             navigator.navigateBack()
         }
     }
-
     Scaffold(
+        modifier = Modifier.systemBarsPadding(),
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     ChatHeaderTitle(state)
-                },
-                actions = {
-                    IconButton(onClick = {
-                        scope.launch {
-                            if (navigator.scaffoldValue[SupportingPaneScaffoldRole.Supporting] == PaneAdaptedValue.Hidden) {
-                                navigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
-                            } else {
-                                navigator.navigateBack()
-                            }
-                        }
-                    }) {
-                        if (navigator.scaffoldValue[SupportingPaneScaffoldRole.Supporting] == PaneAdaptedValue.Hidden) {
-                            Icon(painterResource(R.drawable.material_symbols_info), stringResource(R.string.chat_show_user_profile))
-                        } else {
-                            Icon(painterResource(R.drawable.material_symbols_filled_info), stringResource(R.string.chat_hide_user_profile))
-                        }
-                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { goBack() }) {
@@ -132,12 +117,10 @@ fun ChatPage(
                             Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.ui_go_back)
                         )
                     }
-
                 })
         }, bottomBar = {
             Row(
                 modifier = Modifier
-                    .safeContentPadding()
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
                     .imePadding()
@@ -256,29 +239,31 @@ fun ChatContent(
     state: ChatState,
     padding: PaddingValues
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        reverseLayout = true
-    ) {
-        items(state.messages) { message ->
-            val isSelf = message.authorId == ApiClient.currentSession?.userId
+    Box(modifier = Modifier.padding(padding).padding(horizontal = 10.dp)) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            reverseLayout = true
+        ) {
+            items(state.messages) { message ->
+                val isSelf = message.authorId == ApiClient.currentSession?.userId
 
-            Box(modifier = Modifier.fillMaxWidth()) {
-                when (message.system != null) {
-                    true -> SystemMessageDisplay(message.system)
-                    false -> ChatBubble(
-                        message,
-                        modifier = if (isSelf)
-                            Modifier.align(Alignment.BottomEnd)
-                        else
-                            Modifier.align(Alignment.BottomStart),
-                        isSelf
-                    )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    when (message.system != null) {
+                        true -> SystemMessageDisplay(message.system)
+                        false -> ChatBubble(
+                            message,
+                            modifier = if (isSelf)
+                                Modifier.align(Alignment.BottomEnd)
+                            else
+                                Modifier.align(Alignment.BottomStart),
+                            isSelf
+                        )
+                    }
                 }
             }
-        }
 
+        }
     }
 }

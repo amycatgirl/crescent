@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import android.util.Log
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -14,7 +14,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
@@ -33,11 +37,11 @@ import space.bunniesin.crescent.ui.composables.PeopleListItem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomePage(
-    homeViewmodel: HomeViewmodel,
+    viewmodel: HomeViewmodel,
     navigateToChat: (channel: Channel, user: User?) -> Unit,
     navigateToDebug: () -> Unit,
     navigateToSettings: () -> Unit,
-    navigateToStartConversation: () -> Unit,
+    navigateToStartConversation: (String) -> Unit,
 ) {
     val scrollBehavior =
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -75,7 +79,7 @@ fun HomePage(
                     icon = {
                         Icon(painterResource(R.drawable.material_symbols_person_add), contentDescription = "Add")
                     },
-                    onClick = { navigateToStartConversation() }
+                    onClick = { navigateToStartConversation("People") }
                 ),
                 FloatingActionButtonListItem(
                     icon = {
@@ -88,23 +92,40 @@ fun HomePage(
         LazyColumn(
             modifier = Modifier.consumeWindowInsets(innerPadding), contentPadding = innerPadding
         ) {
-            items(homeViewmodel.channels) { channel ->
+            items(viewmodel.channels) { channel ->
                 when (channel) {
                     is Channel.DirectMessage -> {
-                        val author = remember {
-                            ApiClient.cache.asIterable().filterIsInstance<Map.Entry<String, User>>()
-                                .find { entry ->
-                                    ApiClient.currentSession?.userId != entry.value.id &&
-                                            channel.recipients.contains(entry.value.id)
-                                }!!.value
-                        }
+                        if (channel.active) {
+                            val recipientId = remember(channel.id) {
+                                channel.recipients.find { it != viewmodel.stoat.currentSession?.userId }
+                            }
+                            var author by remember(recipientId) {
+                                mutableStateOf(viewmodel.stoat.cache[recipientId] as? User)
+                            }
 
-                        Log.d("Cache", "Found author: $author in ${ApiClient.cache}")
-                        if (channel.active && author.flags != Flags.DELETED.ordinal) {
-                            PeopleListItem(
-                                user = author,
-                                status = author.status,
-                                callback = { navigateToChat(channel, author) })
+                            if (author?.flags != Flags.DELETED.ordinal) {
+                                LaunchedEffect(recipientId) {
+                                    if (author == null && recipientId != null) {
+                                        try {
+                                            author = viewmodel.stoat.fetchUser(recipientId)
+                                        } catch (e: Exception) {
+                                            Log.e("Home", "Failed to fetch user $recipientId", e)
+                                        }
+                                    }
+                                }
+
+                                if (author == null) {
+                                    PeopleListItem(isLoading = true, callback = {})
+                                } else {
+                                    val user = author!!
+                                    if (user.flags != Flags.DELETED.ordinal) {
+                                        PeopleListItem(
+                                            user = user,
+                                            status = user.status,
+                                            callback = { navigateToChat(channel, user) })
+                                    }
+                                }
+                            }
                         }
                     }
 

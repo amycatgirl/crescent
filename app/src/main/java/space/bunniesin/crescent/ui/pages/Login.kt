@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -26,10 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,8 +49,7 @@ import space.bunniesin.crescent.R
 fun LoginPage(
     viewmodel: LoginViewmodel
 ) {
-    var emailValue by remember { mutableStateOf("") }
-    var passwordValue by remember { mutableStateOf("") }
+    val state by viewmodel.state.collectAsState()
     // TODO: Please implement when the login gets an error or it's requires MFA code. And plus, implement login functionality too.
     // TODO: fuck off :trl:
 
@@ -60,10 +57,9 @@ fun LoginPage(
         AccountDisabledDialog {}
     }
 
-    val showPassword = viewmodel.showPassword
-    val passwordIcon = if (showPassword) painterResource(R.drawable.material_symbols_eye_off)
+    val passwordIcon = if (state.isPasswordShown) painterResource(R.drawable.material_symbols_eye_off)
     else painterResource(R.drawable.material_symbols_eye)
-    val passwordTransformation = if (showPassword) VisualTransformation.None
+    val passwordTransformation = if (state.isPasswordShown) VisualTransformation.None
     else PasswordVisualTransformation()
 
     Scaffold { innerPadding ->
@@ -107,16 +103,16 @@ fun LoginPage(
                 verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
             ) {
                 OutlinedTextField(
-                    value = emailValue,
-                    onValueChange = { emailValue = it },
+                    value = state.email,
+                    onValueChange = { viewmodel.updateEmail(it) },
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                     label = { Text(stringResource(R.string.ui_input_email)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     maxLines = 1
                 )
                 OutlinedTextField(
-                    value = passwordValue,
-                    onValueChange = { passwordValue = it },
+                    value = state.password,
+                    onValueChange = { viewmodel.updateEmail(it) },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     label = {
                         Text(stringResource(R.string.ui_input_password))
@@ -131,7 +127,7 @@ fun LoginPage(
                     } }
                 )
                 Button(modifier = Modifier.fillMaxWidth(.625f), onClick = {
-                    viewmodel.login(emailValue, passwordValue)
+                    viewmodel.login()
                 }) {
                     Text(stringResource(R.string.ui_button_login))
                 }

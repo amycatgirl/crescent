@@ -38,25 +38,25 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
+import space.bunniesin.crescent.models.api.User
+import kotlin.time.Duration.Companion.milliseconds
 
-@OptIn(DelicateCoroutinesApi::class)
-private fun intervalPing(ws: DefaultWebSocketSession) = GlobalScope.launch {
-    while (true) {
-        delay(20 * 1000)
-        Log.d("Socket", "Pinging!")
-        ws.send(ApiClient.jsonDeserializer.encodeToString(PingEvent(1)))
-    }
-}
+data class InstanceConfig(
+    val api: String = "https://api.stoat.chat/0.8",
+    val gateway: String = "wss://events.stoat.chat",
+    val cdn: String = "https://cdn.stoatusercontent.com"
+)
 
-object ApiClient {
-    private var SOCKET_ROOT_URL: String = "wss://events.stoat.chat?version=1&format=json"
-    private var API_ROOT_URL: String = "https://api.stoat.chat/0.8"
-    const val S3_ROOT_URL: String = "https://cdn.stoatusercontent.com"
+class ApiClient constructor(
+    val config: InstanceConfig = InstanceConfig()
+) {
+
     private var currentIntervalJob: Job? = null
     var currentSession: SessionResponse.Success? = null
     private var websocket: DefaultWebSocketSession? = null
@@ -76,6 +76,21 @@ object ApiClient {
 
     var cache = mutableMapOf<String, Any>()
 
+    private suspend fun intervalPing(ws: DefaultWebSocketSession): Job? {
+        var job: Job? = null;
+        coroutineScope {
+            job = launch {
+                while (true) {
+                    delay((20 * 1000).milliseconds)
+                    Log.d("Socket", "Pinging!")
+                    ws.send(this@ApiClient.jsonDeserializer.encodeToString(PingEvent(1)))
+                }
+            }
+        }
+
+        return job
+    }
+
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(jsonDeserializer)
@@ -86,7 +101,7 @@ object ApiClient {
     }
 
     suspend fun getDirectMessages(): List<Channel> {
-        val res = client.get("$API_ROOT_URL/users/dms") {
+        val res = client.get("${config.api}/users/dms") {
             headers {
                 append("X-Session-Token", currentSession?.userToken ?: "")
             }
@@ -108,7 +123,7 @@ object ApiClient {
         channel: Channel, messageId: String
     ): PartialMessage? {
         return try {
-            val res = client.get("$API_ROOT_URL/channel/${channel.id}/messages/${messageId}") {
+            val res = client.get("${config.api}/channel/${channel.id}/messages/${messageId}") {
                 headers {
                     append("X-Session-Token", currentSession?.userToken ?: "")
                 }
@@ -129,7 +144,7 @@ object ApiClient {
     suspend fun getChannelMessages(channelId: String): List<PartialMessage> {
         val channel = cache[channelId] as Channel
         Log.d("Cache", "Found Channel: $channel")
-        val url = "${API_ROOT_URL}channels/${channel.id}/messages?limit=30"
+        val url = "${config.api}channels/${channel.id}/messages?limit=30"
         val res = client.get(url) {
             headers {
                 append("X-Session-Token", currentSession?.userToken ?: "")
@@ -145,7 +160,7 @@ object ApiClient {
     }
 
     suspend fun sendMessage(location: Channel, message: String) {
-        val url = "${API_ROOT_URL}channels/${location.id}/messages"
+        val url = "${config.api}channels/${location.id}/messages"
         client.post(url) {
             headers {
                 append("X-Session-Token", currentSession?.userToken ?: "")
@@ -158,7 +173,7 @@ object ApiClient {
 
     suspend fun loginWithPassword(email: String, password: String): SessionResponse {
         // TODO: error handling
-        val response = client.post("$API_ROOT_URL/auth/session/login") {
+        val response = client.post("${config.api}/auth/session/login") {
             accept(ContentType.Application.Json)
             contentType(ContentType.Application.Json)
 
@@ -173,7 +188,7 @@ object ApiClient {
     }
 
     suspend fun confirm2FA(ticket: String, code: String): SessionResponse {
-        val response = client.post("$API_ROOT_URL/auth/session/login") {
+        val response = client.post("${config.api}/auth/session/login") {
             accept(ContentType.Application.Json)
             contentType(ContentType.Application.Json)
 
@@ -192,7 +207,8 @@ object ApiClient {
         currentSession = response
         CoroutineScope(Dispatchers.IO).launch {
             Log.d("Socket", "Starting websocket!")
-            client.wss("$SOCKET_ROOT_URL&token=${response.userToken}") {
+            // TODO: construct url from func
+            client.wss("${config.gateway}?version=1&format=json&token=${response.userToken}") {
                 websocket = this@wss
 
                 try {
@@ -207,13 +223,13 @@ object ApiClient {
                     Log.e("Socket", "$exception")
                 }
 
-                currentIntervalJob = intervalPing(this@wss)
+                this@ApiClient.currentIntervalJob = intervalPing(this@wss)
             }
         }
     }
 
     private suspend fun removeExistingSession(sessionResponse: SessionResponse.Success) {
-        client.delete("${API_ROOT_URL}auth/session/${sessionResponse.id}") {
+        client.delete("${config.api}auth/session/${sessionResponse.id}") {
             headers { append("X-Session-Token", currentSession?.userToken ?: "") }
             contentType(ContentType.Application.Json)
         }
@@ -232,5 +248,16 @@ object ApiClient {
 
             false
         }
+    }
+
+    suspend fun fetchUser(id: String): User {
+        val response = client.get("${config.api}/users/$id") {
+            accept(ContentType.Application.Json)
+            headers { append("X-Session-Token", currentSession?.userToken ?: "") }
+            // TODO: refactor into extension function
+        }.body<User>()
+
+        cache[id] = response
+        return response
     }
 }

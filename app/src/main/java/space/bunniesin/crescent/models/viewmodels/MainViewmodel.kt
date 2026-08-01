@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import jakarta.inject.Inject
 import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.websocket.ReadyEvent
 import space.bunniesin.crescent.utilities.EventBus
@@ -11,7 +13,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class MainViewmodel : ViewModel() {
+@HiltViewModel
+class MainViewmodel @Inject constructor(
+    val stoat: ApiClient
+) : ViewModel() {
     var messageList = mutableStateListOf<Any>()
         private set
 
@@ -26,7 +31,7 @@ class MainViewmodel : ViewModel() {
         CoroutineScope(Dispatchers.IO).launch {
             EventBus.subscribe<ReadyEvent> { event ->
                 event.users.forEach {
-                    ApiClient.cache[it.id] = it
+                    stoat.cache[it.id] = it
                 }
             }
         }

@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import space.bunniesin.crescent.R
-import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.websocket.AuthenticatedEvent
 import space.bunniesin.crescent.models.api.websocket.PartialMessage
 import space.bunniesin.crescent.models.api.websocket.ReadyEvent

@@ -3,6 +3,10 @@ package space.bunniesin.crescent.models.viewmodels
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.websocket.PartialMessage
 import kotlinx.coroutines.launch
+import space.bunniesin.crescent.api.InstanceConfig
 import space.bunniesin.crescent.models.api.User
 import space.bunniesin.crescent.models.api.channels.Channel
 
@@ -21,10 +26,17 @@ data class ChatState(
     val currentMessageContent: String = ""
 )
 
-class ChatViewmodel(
-    user: User?,
-    channel: Channel,
+@HiltViewModel(assistedFactory = ChatViewmodel.Factory::class)
+class ChatViewmodel @AssistedInject constructor(
+    val client: ApiClient,
+    @Assisted private val user: User?,
+    @Assisted private val channel: Channel,
 ) : ViewModel() {
+    @AssistedFactory
+    interface Factory {
+        fun create(user: User?, channel: Channel): ChatViewmodel
+    }
+
     private val _uiState = MutableStateFlow(ChatState())
 
     val state: StateFlow<ChatState> = _uiState.asStateFlow()
@@ -38,7 +50,7 @@ class ChatViewmodel(
         }
     }
     suspend fun getMessages(channel: String): List<PartialMessage> {
-        return ApiClient.getChannelMessages(channel).toMutableList()
+        return client.getChannelMessages(channel).toMutableList()
     }
 
     fun addMessage(message: PartialMessage) {
@@ -49,6 +61,9 @@ class ChatViewmodel(
     }
 
     suspend fun sendMessage(where: Channel, content: String) {
-        ApiClient.sendMessage(where, content)
+        client.sendMessage(where, content)
     }
+
+    fun getConfig(): InstanceConfig = client.config
+    fun isSelf(id: String?): Boolean = client.currentSession?.userId == id
 }

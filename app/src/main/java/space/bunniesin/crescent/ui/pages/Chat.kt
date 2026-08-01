@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -9,7 +9,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,8 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.plus
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
@@ -38,10 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.layout.AnimatedPane
-import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
-import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
-import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,23 +50,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import space.bunniesin.crescent.R
 import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.User
 import space.bunniesin.crescent.models.api.channels.Channel
 import space.bunniesin.crescent.models.api.websocket.PartialMessage
+import space.bunniesin.crescent.models.viewmodels.ChatState
 import space.bunniesin.crescent.models.viewmodels.ChatViewmodel
 import space.bunniesin.crescent.ui.composables.ChatBubble
 import space.bunniesin.crescent.ui.composables.CustomTextField
 import space.bunniesin.crescent.ui.composables.ProfileImage
 import space.bunniesin.crescent.ui.composables.SystemMessageDisplay
-import space.bunniesin.crescent.ui.theme.RevoltTheme
 import space.bunniesin.crescent.utilities.EventBus
-import kotlinx.coroutines.launch
-import space.bunniesin.crescent.models.viewmodels.ChatState
 
 // TODO: Currently it's buggy and might crash.
 
@@ -109,7 +100,23 @@ fun ChatPage(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    ChatHeaderTitle(state)
+                    val icon = if (state.user != null) {
+                        state.user!!.avatar?.let { "${viewmodel.getConfig().cdn}/avatars/${it.id}?max_side=256" }
+                    } else if (state.channel is Channel.Group) {
+                        (state.channel as Channel.Group).icon?.let { "${viewmodel.getConfig().cdn}/icons/${it.id}?max_side=256" }
+                    } else {
+                        null
+                    }
+
+                    val name = if (state.user != null) {
+                        state.user!!.displayName
+                            ?: "${state.user!!.username}#${state.user!!.discriminator}"
+                    } else if (state.channel is Channel.Group) {
+                        (state.channel as Channel.Group).name
+                    } else {
+                        "Unknown"
+                    }
+                    ChatHeaderTitle(name, icon)
                 },
                 navigationIcon = {
                     IconButton(onClick = { goBack() }) {
@@ -172,7 +179,10 @@ fun ChatPage(
                             onClick = {
                                 scope.launch {
                                     if (state.channel != null) {
-                                        viewmodel.sendMessage(state.channel as Channel, messageValue)
+                                        viewmodel.sendMessage(
+                                            state.channel as Channel,
+                                            messageValue
+                                        )
                                         messageValue = ""
                                     } else {
                                         Log.d("ChatPage", "What the fuck, channel is null?????")
@@ -198,35 +208,21 @@ fun ChatPage(
         }
 
     ) {
-        ChatContent(state, it)
+        ChatContent(viewmodel.client, state, { id -> viewmodel.isSelf(id) }, it)
     }
 }
 
 @Composable
 fun ChatHeaderTitle(
-    state: ChatState
+    name: String,
+    icon: String?,
 ) {
-    val avatar = if (state.user != null) {
-        state.user.avatar?.let { "${ApiClient.S3_ROOT_URL}/avatars/${it.id}?max_side=256" }
-    } else if (state.channel is Channel.Group) {
-        state.channel.icon?.let { "${ApiClient.S3_ROOT_URL}/icons/${it.id}?max_side=256" }
-    } else {
-        "Unknown"
-    }
-
-    val name = if (state.user != null) {
-        state.user.displayName ?: "${state.user.username}#${state.user.discriminator}"
-    } else if (state.channel is Channel.Group) {
-        state.channel.name
-    } else {
-        "Unknown"
-    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         ProfileImage(
-            fallback = name, url = avatar, size = 26.dp
+            fallback = name, url = icon, size = 26.dp
         )
         Text(
             text = name, maxLines = 1, overflow = TextOverflow.Ellipsis
@@ -236,10 +232,14 @@ fun ChatHeaderTitle(
 
 @Composable
 fun ChatContent(
+    stoat: ApiClient,
     state: ChatState,
+    isSelf: (String?) -> Boolean,
     padding: PaddingValues
 ) {
-    Box(modifier = Modifier.padding(padding).padding(horizontal = 10.dp)) {
+    Box(modifier = Modifier
+        .padding(padding)
+        .padding(horizontal = 10.dp)) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize(),
@@ -247,19 +247,25 @@ fun ChatContent(
             reverseLayout = true
         ) {
             items(state.messages) { message ->
-                val isSelf = message.authorId == ApiClient.currentSession?.userId
-
                 Box(modifier = Modifier.fillMaxWidth()) {
                     when (message.system != null) {
                         true -> SystemMessageDisplay(message.system)
-                        false -> ChatBubble(
-                            message,
-                            modifier = if (isSelf)
-                                Modifier.align(Alignment.BottomEnd)
-                            else
-                                Modifier.align(Alignment.BottomStart),
-                            isSelf
-                        )
+                        false -> {
+                            val author: User = stoat.cache[message.authorId].let {
+                                (it
+                                    ?: runBlocking {
+                                        stoat.fetchUser(message.authorId!!)
+                                    }) as User
+                            }
+                            ChatBubble(
+                                author,
+                                message,
+                                modifier = if (isSelf(message.authorId))
+                                    Modifier.align(Alignment.BottomEnd)
+                                else
+                                    Modifier.align(Alignment.BottomStart),
+                            )
+                        }
                     }
                 }
             }

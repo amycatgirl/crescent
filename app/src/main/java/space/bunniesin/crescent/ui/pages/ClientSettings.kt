@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

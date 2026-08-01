@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +31,7 @@ import space.bunniesin.crescent.ui.theme.RevoltTheme
 // TODO: Add resource strings for translation
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountSettingsPage() {
+fun AccountSettingsPage(goBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -39,7 +39,7 @@ fun AccountSettingsPage() {
                     Text(stringResource(R.string.settings_account))
                 },
                 navigationIcon = {
-                    IconButton(onClick = { /*TODO*/ }) {
+                    IconButton(onClick = goBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
                             contentDescription = stringResource(R.string.ui_go_back)
@@ -260,6 +260,6 @@ fun AccountSettingsPage() {
 @Composable
 fun AccountSettingsPagePreview() {
     RevoltTheme {
-        AccountSettingsPage()
+        AccountSettingsPage() {}
     }
 }

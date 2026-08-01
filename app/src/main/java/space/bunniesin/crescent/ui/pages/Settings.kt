@@ -1,4 +1,4 @@
-package space.bunniesin.crescent.ui.navigation
+package space.bunniesin.crescent.ui.pages
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -48,10 +48,12 @@ import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.ui.composables.LogoutConfirmationDialog
 import space.bunniesin.crescent.ui.theme.RevoltTheme
 import kotlinx.coroutines.launch
+import space.bunniesin.crescent.models.viewmodels.SettingsViewmodel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsPage(
+    viewmodel: SettingsViewmodel,
     goBack: () -> Unit,
     navigateToAccount: () -> Unit,
     navigateToProfile: () -> Unit,
@@ -66,7 +68,7 @@ fun SettingsPage(
         LogoutConfirmationDialog(
             logoutCallback = {
                 scope.launch {
-                    val result = ApiClient.dropSession()
+                    val result = viewmodel.dropSession()
                     when (result) {
                         true -> onSessionDropped()
                         false -> Log.e("App", "Logout failed, do something here")
@@ -202,13 +204,5 @@ fun SettingsPage(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
-    }
-}
-
-@Preview
-@Composable
-fun SettingsPagePreview() {
-    RevoltTheme {
-        SettingsPage({}, {}, {}, {})
     }
 }

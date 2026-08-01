@@ -41,6 +41,7 @@ fun PeopleListItem(
     status: UserStatus? = null,
     unreads: Int? = null,
     disableBottomSheet: Boolean = false,
+    isLoading: Boolean = false,
     callback: (() -> Unit)
 ) {
     // BottomSheet states
@@ -48,18 +49,21 @@ fun PeopleListItem(
     val scope = rememberCoroutineScope()
     var showBottomSheet by remember { mutableStateOf(false) }
 
-    val name = if (user != null) {
+    val name = if (isLoading) {
+        "Loading..."
+    } else if (user != null) {
         user.displayName ?: "${user.username}#${user.discriminator}"
     } else channel?.name ?: "Unknown"
-    val avatar = if (user?.avatar != null) {
-        "${ApiClient.S3_ROOT_URL}avatars/${user.avatar.id}?max_side=256"
+    val avatar = if (isLoading) {
+        null
+    } else if (user?.avatar != null) {
+        // TODO: hardcoding this for now, but root should be able to be get from a service
+        "https://cdn.stoatusercontent.com/avatars/${user.avatar.id}?max_side=256"
     } else if (channel?.icon != null) {
-        "${ApiClient.S3_ROOT_URL}icons/${channel.icon.id}"
+        "https://cdn.stoatusercontent.com/icons/${channel.icon.id}"
     } else null
 
-    val presence = if (user != null) {
-        user.status?.presence
-    } else null
+    val presence = user?.status?.presence
 
     Surface(modifier = Modifier.combinedClickable(
         onClick = callback,

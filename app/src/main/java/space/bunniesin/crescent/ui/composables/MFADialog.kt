@@ -29,34 +29,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.viewmodel.compose.viewModel
 import space.bunniesin.crescent.R
 import space.bunniesin.crescent.models.viewmodels.MFADialogViewModel
 import space.bunniesin.crescent.models.viewmodels.SelectedMethod
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import space.bunniesin.crescent.models.routes.LoginMFA
 
 @Composable
 fun MFADialog(
-    data: LoginMFA,
+    viewmodel: MFADialogViewModel,
     dismissCallback: () -> Unit,
     successCallback: () -> Unit
 ) {
-    val ctx = LocalContext.current
-    val dialogViewmodel: MFADialogViewModel = viewModel {
-        MFADialogViewModel(
-            data.ticket,
-            ctx
-        )
-    }
     var mfaValue by rememberSaveable { mutableStateOf("") }
     var has2FAFinished by remember { mutableStateOf(false) }
 
@@ -118,7 +108,7 @@ fun MFADialog(
             ) {
                 Button(onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
-                        dialogViewmodel.handleMFAMethod(SelectedMethod.TWO_FACTOR_AUTHENTICATION, mfaValue)
+                        viewmodel.handleMFAMethod(SelectedMethod.TWO_FACTOR_AUTHENTICATION, mfaValue)
                     }.invokeOnCompletion { cause -> if (cause == null) has2FAFinished = true }
                 }) {
                     Text(stringResource(R.string.ui_button_login))

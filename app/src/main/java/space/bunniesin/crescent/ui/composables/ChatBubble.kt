@@ -49,9 +49,9 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun ChatBubble(message: PartialMessage, modifier: Modifier = Modifier, isSelf: Boolean = false) {
+fun ChatBubble(user: User, message: PartialMessage, modifier: Modifier = Modifier, isSelf: Boolean = false) {
     val author = remember(message.authorId) {
-        ApiClient.cache[message.authorId] as User?
+        user
     }
 
     // BottomSheet states
@@ -74,12 +74,10 @@ fun ChatBubble(message: PartialMessage, modifier: Modifier = Modifier, isSelf: B
             .widthIn(0.dp, 300.dp),
         horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start
     ) {
-        if (author != null) {
-            Text(
-                if (isSelf) "You" else author.displayName ?: author.username,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
+        Text(
+            if (isSelf) "You" else author.displayName ?: author.username,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
         Surface(
@@ -161,18 +159,6 @@ fun ChatBubble(message: PartialMessage, modifier: Modifier = Modifier, isSelf: B
                     leadingContent = { Icon(Icons.Default.Square, "Not Localized yet") },
                     modifier = Modifier.clickable { /* TODO: Do something! */ })
             }
-        }
-    }
-}
-
-@Preview
-@Composable
-fun ChatBubblePreview() {
-    RevoltTheme {
-        Column {
-            ChatBubble(PartialMessage(), isSelf = true)
-            ChatBubble(PartialMessage())
-            ChatBubble(PartialMessage(content = "🥺"))
         }
     }
 }

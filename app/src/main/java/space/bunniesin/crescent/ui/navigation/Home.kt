@@ -34,7 +34,7 @@ import space.bunniesin.crescent.ui.composables.PeopleListItem
 @Composable
 fun HomePage(
     homeViewmodel: HomeViewmodel,
-    navigateToChat: (location: String) -> Unit,
+    navigateToChat: (channel: Channel, user: User?) -> Unit,
     navigateToDebug: () -> Unit,
     navigateToSettings: () -> Unit,
     navigateToStartConversation: () -> Unit,
@@ -104,12 +104,12 @@ fun HomePage(
                             PeopleListItem(
                                 user = author,
                                 status = author.status,
-                                callback = { navigateToChat(channel.id) })
+                                callback = { navigateToChat(channel, author) })
                         }
                     }
 
                     is Channel.Group -> {
-                        PeopleListItem(channel = channel, callback = { navigateToChat(channel.id) })
+                        PeopleListItem(channel = channel, callback = { navigateToChat(channel, null) })
                     }
                     else -> {}
                 }

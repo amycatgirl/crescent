@@ -74,12 +74,6 @@ fun DebugScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { ApiClient.useStaging = !ApiClient.useStaging }) {
-                        Icon(
-                            Icons.Default.BugReport,
-                            contentDescription = "Toggle staging API/Socket"
-                        )
-                    }
                     IconButton(onClick = { shouldShowDebugMfaDialog = true }) {
                         Icon(Icons.Default.LockReset, contentDescription = "Show MFA Dialog")
                     }

@@ -57,7 +57,6 @@ kotlin {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -71,12 +70,7 @@ dependencies {
     implementation(libs.ktor.client.websockets)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.navigation.fragment.ktx)
-    implementation(libs.androidx.navigation.ui.ktx)
-    implementation(libs.androidx.navigation.dynamic.features.fragment)
     implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.ulidj)
     implementation(libs.coil)
     implementation(libs.coil.compose)
@@ -96,6 +90,9 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.dagger.hilt.android)
     implementation(libs.androidx.constraintlayout.compose)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     kapt(libs.hilt.android.compiler)
 }
 java {

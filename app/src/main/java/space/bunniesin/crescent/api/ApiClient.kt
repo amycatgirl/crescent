@@ -54,27 +54,9 @@ private fun intervalPing(ws: DefaultWebSocketSession) = GlobalScope.launch {
 }
 
 object ApiClient {
-    var useStaging = false
-        set(value) {
-            when (value) {
-                true -> {
-                    API_ROOT_URL = "https://revolt.chat/api/"
-                    SOCKET_ROOT_URL = "wss://revolt.chat/events/?format=json&version=1"
-                }
-
-                false -> {
-                    API_ROOT_URL = "https://api.revolt.chat"
-                    SOCKET_ROOT_URL = "wss://ws.revolt.chat?format=json&version=1"
-
-                }
-            }
-            field = value
-        }
-    private var SOCKET_ROOT_URL: String = "wss://ws.revolt.chat?version=1&format=json"
-    private var API_ROOT_URL: String = "https://api.revolt.chat/"
-    // EDIT: https://autumn.revolt.chat is moving to https://cdn.revoltusercontent.com
-    // Learn more at https://revolt.chat/updates/api-new-cdn
-    const val S3_ROOT_URL: String = "https://cdn.revoltusercontent.com/"
+    private var SOCKET_ROOT_URL: String = "wss://events.stoat.chat?version=1&format=json"
+    private var API_ROOT_URL: String = "https://api.stoat.chat/0.8"
+    const val S3_ROOT_URL: String = "https://cdn.stoatusercontent.com"
     private var currentIntervalJob: Job? = null
     var currentSession: SessionResponse.Success? = null
     private var websocket: DefaultWebSocketSession? = null
@@ -162,10 +144,8 @@ object ApiClient {
         return res
     }
 
-    suspend fun sendMessage(location: String, message: String) {
-        val channel = cache[location] as Channel
-
-        val url = "${API_ROOT_URL}channels/${channel.id}/messages"
+    suspend fun sendMessage(location: Channel, message: String) {
+        val url = "${API_ROOT_URL}channels/${location.id}/messages"
         client.post(url) {
             headers {
                 append("X-Session-Token", currentSession?.userToken ?: "")

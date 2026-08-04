@@ -17,24 +17,5 @@ import kotlinx.coroutines.launch
 class MainViewmodel @Inject constructor(
     val stoat: ApiClient
 ) : ViewModel() {
-    var messageList = mutableStateListOf<Any>()
-        private set
-
-    init {
-        viewModelScope.launch {
-            EventBus.subscribe<Any> { ev ->
-                Log.d("EventBus", "$ev")
-                messageList.add(ev)
-            }
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            EventBus.subscribe<ReadyEvent> { event ->
-                event.users.forEach {
-                    stoat.cache[it.id] = it
-                }
-            }
-        }
-
-    }
+    // lol
 }

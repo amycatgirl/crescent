@@ -60,7 +60,7 @@ class LoginViewmodel @AssistedInject constructor(
 
         if (currentSession.isNotEmpty()) {
             Log.d("Login", "SerializedSession exists, attempting deserialization.")
-            val availableSession = client.jsonDeserializer.decodeFromString<SessionResponse.Success>(
+            val availableSession = client.crescentJson.decodeFromString<SessionResponse.Success>(
                 currentSession
             )
             client.currentSession = availableSession
@@ -93,7 +93,7 @@ class LoginViewmodel @AssistedInject constructor(
                     println("Account has been disabled")
                 }
                 is SessionResponse.Success -> {
-                    val serializedSession = client.jsonDeserializer.encodeToString(response)
+                    val serializedSession = client.crescentJson.encodeToString(response)
                     Log.d("Preferences", "Login Completed, saving current session")
                     preferenceDataStoreHelper.putPreference(
                         ConfigDataStoreKeys.SerializedCurrentSession,

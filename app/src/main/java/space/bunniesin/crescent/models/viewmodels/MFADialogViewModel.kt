@@ -32,7 +32,7 @@ class MFADialogViewModel @AssistedInject constructor(
             SelectedMethod.TWO_FACTOR_AUTHENTICATION -> {
                 require(code != null)
                 val response = stoat.confirm2FA(ticket, code)
-                val serializedSession = stoat.jsonDeserializer.encodeToString(response)
+                val serializedSession = stoat.crescentJson.encodeToString(response)
                 preferenceDataStoreHelper.putPreference(
                     ConfigDataStoreKeys.SerializedCurrentSession,
                     serializedSession

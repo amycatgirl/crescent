@@ -12,6 +12,7 @@ import space.bunniesin.crescent.utilities.EventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import space.bunniesin.crescent.api.gateway.ofType
 
 @HiltViewModel
 class HomeViewmodel @Inject constructor(
@@ -19,11 +20,9 @@ class HomeViewmodel @Inject constructor(
 ) : ViewModel() {
     var channels = mutableStateListOf<Channel>()
     init {
-        CoroutineScope(Dispatchers.IO).launch { // TODO: should be managed by the client
-            EventBus.subscribe<ReadyEvent> {
-                viewModelScope.launch {
-                    channels.addAll(fetchChannels())
-                }
+        viewModelScope.launch {
+            stoat.gateway.events.ofType<ReadyEvent>().collect { event ->
+                channels.addAll(event.channels)
             }
         }
     }

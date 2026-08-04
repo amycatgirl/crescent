@@ -37,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,14 +56,12 @@ import space.bunniesin.crescent.R
 import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.User
 import space.bunniesin.crescent.models.api.channels.Channel
-import space.bunniesin.crescent.models.api.websocket.PartialMessage
 import space.bunniesin.crescent.models.viewmodels.ChatState
 import space.bunniesin.crescent.models.viewmodels.ChatViewmodel
 import space.bunniesin.crescent.ui.composables.ChatBubble
 import space.bunniesin.crescent.ui.composables.CustomTextField
 import space.bunniesin.crescent.ui.composables.ProfileImage
 import space.bunniesin.crescent.ui.composables.SystemMessageDisplay
-import space.bunniesin.crescent.utilities.EventBus
 
 // TODO: Currently it's buggy and might crash.
 
@@ -80,15 +77,6 @@ fun ChatPage(
     val state by viewmodel.state.collectAsState()
 
     val scope = rememberCoroutineScope()
-
-    // TODO: Move to background thread, should be inside viewmodel anyway
-    LaunchedEffect(state.channel?.id) {
-        EventBus.subscribe<PartialMessage> {
-            if (it.channelId == state.channel?.id) {
-                viewmodel.addMessage(it)
-            }
-        }
-    }
 
     BackHandler(navigator.canNavigateBack()) {
         scope.launch {
@@ -246,12 +234,12 @@ fun ChatContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             reverseLayout = true
         ) {
-            items(state.messages) { message ->
+            items(state.messages, key = { item -> item.id!! }) { message ->
                 Box(modifier = Modifier.fillMaxWidth()) {
                     when (message.system != null) {
                         true -> SystemMessageDisplay(message.system)
                         false -> {
-                            val author: User = stoat.cache[message.authorId].let {
+                            val author: User = stoat.users[message.authorId].let {
                                 (it
                                     ?: runBlocking {
                                         stoat.fetchUser(message.authorId!!)

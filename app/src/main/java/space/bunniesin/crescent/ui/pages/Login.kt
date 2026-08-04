@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -108,11 +109,12 @@ fun LoginPage(
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                     label = { Text(stringResource(R.string.ui_input_email)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-                    maxLines = 1
+                    maxLines = 1,
+                    modifier = Modifier.widthIn(max = 280.dp)
                 )
                 OutlinedTextField(
                     value = state.password,
-                    onValueChange = { viewmodel.updateEmail(it) },
+                    onValueChange = { viewmodel.updatePassword(it) },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     label = {
                         Text(stringResource(R.string.ui_input_password))
@@ -124,7 +126,8 @@ fun LoginPage(
                         viewmodel.toggleShowPassword()
                     }) {
                         Icon(painter = passwordIcon, contentDescription = "")
-                    } }
+                    } },
+                    modifier = Modifier.widthIn(max = 280.dp)
                 )
                 Button(modifier = Modifier.fillMaxWidth(.625f), onClick = {
                     viewmodel.login()

@@ -51,4 +51,11 @@ sealed class Channel {
         @SerialName("nsfw")
         val notSafeForWork: Boolean? = null
     ) : Channel()
+
+    @Serializable
+    @SerialName("TextChannel")
+    class TextChannel(
+        @SerialName("_id")
+        override val id: String
+    ): Channel()
 }

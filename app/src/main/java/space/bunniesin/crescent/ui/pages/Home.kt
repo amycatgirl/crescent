@@ -25,7 +25,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import space.bunniesin.crescent.R
-import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.Flags
 import space.bunniesin.crescent.models.api.User
 import space.bunniesin.crescent.models.api.channels.Channel
@@ -100,7 +99,7 @@ fun HomePage(
                                 channel.recipients.find { it != viewmodel.stoat.currentSession?.userId }
                             }
                             var author by remember(recipientId) {
-                                mutableStateOf(viewmodel.stoat.cache[recipientId] as? User)
+                                mutableStateOf(viewmodel.stoat.users[recipientId] as? User)
                             }
 
                             if (author?.flags != Flags.DELETED.ordinal) {

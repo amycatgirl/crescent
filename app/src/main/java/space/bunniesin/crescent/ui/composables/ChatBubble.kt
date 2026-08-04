@@ -66,8 +66,6 @@ fun ChatBubble(user: User, message: PartialMessage, modifier: Modifier = Modifie
 
     val isOnlyEmoji = remember { checkIfMessageOnlyContainsEmoji() }
 
-    Log.d("emoji", "Is emoji beeg: $isOnlyEmoji")
-
     Column(
         modifier = modifier
             .height(IntrinsicSize.Min)
@@ -90,7 +88,6 @@ fun ChatBubble(user: User, message: PartialMessage, modifier: Modifier = Modifie
                 .combinedClickable(
                     onClick = { /* NOTE: Leave them empty for now */ },
                     onLongClick = {
-                        Log.d("ChatBubble", "Long Pressed")
                         showBottomSheet = true
                     }
                 )

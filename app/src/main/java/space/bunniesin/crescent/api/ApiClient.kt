@@ -8,17 +8,13 @@ import space.bunniesin.crescent.models.api.authentication.SessionResponse
 import space.bunniesin.crescent.models.api.channels.Channel
 import space.bunniesin.crescent.models.api.websocket.BaseEvent
 import space.bunniesin.crescent.models.api.websocket.PartialMessage
-import space.bunniesin.crescent.models.api.websocket.PingEvent
 import space.bunniesin.crescent.models.api.websocket.SystemMessage
 import space.bunniesin.crescent.models.api.websocket.UnimplementedEvent
-import space.bunniesin.crescent.utilities.EventBus
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.receiveDeserialized
-import io.ktor.client.plugins.websocket.wss
 import io.ktor.client.request.accept
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -29,23 +25,17 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.websocket.DefaultWebSocketSession
-import io.ktor.websocket.Frame
-import io.ktor.websocket.close
-import io.ktor.websocket.send
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
+import space.bunniesin.crescent.api.gateway.GatewayManager
+import space.bunniesin.crescent.api.gateway.ofType
 import space.bunniesin.crescent.models.api.User
-import kotlin.time.Duration.Companion.milliseconds
+import space.bunniesin.crescent.models.api.websocket.ReadyEvent
 
 data class InstanceConfig(
     val api: String = "https://api.stoat.chat/0.8",
@@ -59,8 +49,8 @@ class ApiClient constructor(
 
     private var currentIntervalJob: Job? = null
     var currentSession: SessionResponse.Success? = null
-    private var websocket: DefaultWebSocketSession? = null
-    val jsonDeserializer = Json {
+
+    val crescentJson = Json {
         ignoreUnknownKeys = true
         isLenient = true
         serializersModule = SerializersModule {
@@ -74,29 +64,18 @@ class ApiClient constructor(
         }
     }
 
-    var cache = mutableMapOf<String, Any>()
+    val gateway = GatewayManager(
+        config,
+        crescentJson
+    )
 
-    private suspend fun intervalPing(ws: DefaultWebSocketSession): Job? {
-        var job: Job? = null;
-        coroutineScope {
-            job = launch {
-                while (true) {
-                    delay((20 * 1000).milliseconds)
-                    Log.d("Socket", "Pinging!")
-                    ws.send(this@ApiClient.jsonDeserializer.encodeToString(PingEvent(1)))
-                }
-            }
-        }
-
-        return job
-    }
+    var users = mutableMapOf<String, User>()
+    var channels = mutableMapOf<String, Channel>()
+    var messages = mutableMapOf<String, PartialMessage>()
 
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
-            json(jsonDeserializer)
-        }
-        install(WebSockets) {
-            contentConverter = KotlinxWebsocketSerializationConverter(jsonDeserializer)
+            json(crescentJson)
         }
     }
 
@@ -111,11 +90,11 @@ class ApiClient constructor(
 
 
         res.forEach {
-            cache[it.id] = it
+            channels[it.id] = it
         }
 
         Log.d("Client", "Direct Messages: $res")
-        Log.d("Cache", "Cache size: ${cache.size}")
+        Log.d("Cache", "Cache size: ${users.size}")
         return res
     }
 
@@ -131,9 +110,9 @@ class ApiClient constructor(
                 accept(ContentType.Application.Json)
             }.body<PartialMessage>()
 
-            cache[res.id!!] = res
+            messages[res.id!!] = res
 
-            Log.d("Cache", "Cache size: ${cache.size}")
+            Log.d("Cache", "Cache size: ${users.size}")
             return res
         } catch (e: Exception) {
             Log.e("Client", "Fuck, $e")
@@ -141,11 +120,21 @@ class ApiClient constructor(
         }
     }
 
+    suspend fun getChannel(id: String): Channel {
+        val res = client.get("${config.api}/channels/$id") {
+            headers {
+                append("X-Session-Token", currentSession?.userToken ?: "")
+            }
+        }.body<Channel>()
+
+        channels[res.id] = res
+
+        return res
+    }
     suspend fun getChannelMessages(channelId: String): List<PartialMessage> {
-        val channel = cache[channelId] as Channel
-        Log.d("Cache", "Found Channel: $channel")
-        val url = "${config.api}channels/${channel.id}/messages?limit=30"
-        val res = client.get(url) {
+        val channel = channels[channelId] ?: getChannel(channelId)
+
+        val res = client.get("${config.api}channels/${channel.id}/messages?limit=30") {
             headers {
                 append("X-Session-Token", currentSession?.userToken ?: "")
             }
@@ -154,7 +143,7 @@ class ApiClient constructor(
         }.body<List<PartialMessage>>()
 
 
-        Log.d("Cache", "Cache size: ${cache.size}")
+        Log.d("Cache", "Cache size: ${users.size}")
 
         return res
     }
@@ -202,30 +191,19 @@ class ApiClient constructor(
         return response
     }
 
-    suspend fun startSession(response: SessionResponse.Success) {
+    fun startSession(response: SessionResponse.Success) {
         Log.d("Client", "Got response from API: $response")
         currentSession = response
+
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d("Socket", "Starting websocket!")
-            // TODO: construct url from func
-            client.wss("${config.gateway}?version=1&format=json&token=${response.userToken}") {
-                websocket = this@wss
-
-                try {
-                    for (frame in incoming) {
-                        if (frame is Frame.Text) {
-                            val event: BaseEvent = receiveDeserialized()
-                            Log.d("Socket", "Got Event: $event")
-                            EventBus.publish(event)
-                        }
-                    }
-                } catch (exception: Exception) {
-                    Log.e("Socket", "$exception")
+            gateway.events.ofType<ReadyEvent>().collect { event ->
+                event.users.forEach {
+                    users[it.id] = it
                 }
-
-                this@ApiClient.currentIntervalJob = intervalPing(this@wss)
             }
         }
+
+        gateway.connect(currentSession!!.userToken)
     }
 
     private suspend fun removeExistingSession(sessionResponse: SessionResponse.Success) {
@@ -240,7 +218,7 @@ class ApiClient constructor(
             removeExistingSession(currentSession!!)
             currentSession = null
 
-            websocket?.close()
+            gateway.disconnect()
 
             true
         } catch (error: Exception) {
@@ -257,7 +235,7 @@ class ApiClient constructor(
             // TODO: refactor into extension function
         }.body<User>()
 
-        cache[id] = response
+        users[id] = response
         return response
     }
 }

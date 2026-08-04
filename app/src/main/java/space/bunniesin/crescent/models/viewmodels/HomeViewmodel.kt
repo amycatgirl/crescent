@@ -8,9 +8,6 @@ import jakarta.inject.Inject
 import space.bunniesin.crescent.api.ApiClient
 import space.bunniesin.crescent.models.api.channels.Channel
 import space.bunniesin.crescent.models.api.websocket.ReadyEvent
-import space.bunniesin.crescent.utilities.EventBus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import space.bunniesin.crescent.api.gateway.ofType
 

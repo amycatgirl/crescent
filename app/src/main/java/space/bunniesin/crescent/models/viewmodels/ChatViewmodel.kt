@@ -1,13 +1,11 @@
 package space.bunniesin.crescent.models.viewmodels
 
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +17,6 @@ import space.bunniesin.crescent.api.InstanceConfig
 import space.bunniesin.crescent.api.gateway.ofType
 import space.bunniesin.crescent.models.api.User
 import space.bunniesin.crescent.models.api.channels.Channel
-import space.bunniesin.crescent.utilities.EventBus
 
 data class ChatState(
     val messages: List<PartialMessage> = listOf<PartialMessage>(),
